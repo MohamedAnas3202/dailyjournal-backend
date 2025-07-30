@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: dailyjournal-backend
+    env: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    buildCommand: ""
+    startCommand: ""
+    envVars:
+      - key: DATABASE_URL
+        value: jdbc:mysql://mainline.proxy.rlwy.net:44100/railway
+      - key: DATABASE_USERNAME
+        value: root
+      - key: DATABASE_PASSWORD
+        value: rSothvVtdqKAGVzNTLhFIrymouuJONSn
+      - key: JWT_SECRET
+        value: your-secure-jwt-secret-key-daily-journal-512bits!
+      - key: APP_BASE_URL
+        fromService:
+          type: web
+          name: dailyjournal-backend
+          property: host
+    healthCheckPath: /actuator/health
