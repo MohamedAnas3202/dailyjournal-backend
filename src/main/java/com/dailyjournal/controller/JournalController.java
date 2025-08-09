@@ -14,7 +14,6 @@ import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.multipart.MultipartFile;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -23,7 +22,6 @@ import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
 import org.springframework.http.HttpHeaders;
 
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.io.IOException;
@@ -181,7 +179,7 @@ public class JournalController {
         return ResponseEntity.ok(response);
     }
 
-    @CrossOrigin(origins = {"https://dailyjournal-frontend.vercel.app"})
+    @CrossOrigin(origins = "*")
     @GetMapping("/media/{filename:.+}")
     public ResponseEntity<Resource> getMedia(@PathVariable String filename) throws IOException {
         Path path = Paths.get("uploads").resolve(filename);
@@ -191,34 +189,9 @@ public class JournalController {
             return ResponseEntity.notFound().build();
         }
 
-        // Detect content type
-        String contentType = "application/octet-stream";
-        try {
-            contentType = Files.probeContentType(path);
-            if (contentType == null) {
-                contentType = "application/octet-stream";
-            }
-        } catch (IOException e) {
-            // Use default content type
-        }
-
         return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_TYPE, contentType)
                 .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + filename + "\"")
-                .header(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN, "https://dailyjournal-frontend.vercel.app")
-                .header(HttpHeaders.ACCESS_CONTROL_ALLOW_METHODS, "GET, OPTIONS")
-                .header(HttpHeaders.ACCESS_CONTROL_ALLOW_HEADERS, "*")
                 .body(resource);
-    }
-
-    @CrossOrigin(origins = {"https://dailyjournal-frontend.vercel.app"})
-    @RequestMapping(value = "/media/{filename:.+}", method = RequestMethod.OPTIONS)
-    public ResponseEntity<Void> handleMediaOptions(@PathVariable String filename) {
-        return ResponseEntity.ok()
-                .header(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN, "https://dailyjournal-frontend.vercel.app")
-                .header(HttpHeaders.ACCESS_CONTROL_ALLOW_METHODS, "GET, OPTIONS")
-                .header(HttpHeaders.ACCESS_CONTROL_ALLOW_HEADERS, "*")
-                .build();
     }
 
     @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
