@@ -23,9 +23,10 @@ import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
 import org.springframework.http.HttpHeaders;
 
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.io.IOException;
+
 import java.time.LocalDate;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -182,20 +183,30 @@ public class JournalController {
 
     @CrossOrigin(origins = "*")
     @GetMapping("/media/{filename:.+}")
-    public ResponseEntity<Resource> getMedia(@PathVariable String filename) throws IOException {
-        Path path = Paths.get("uploads").resolve(filename);
-        Resource resource = new UrlResource(path.toUri());
+    public ResponseEntity<Resource> getMedia(@PathVariable String filename) {
+        try {
+            // Ensure uploads directory exists
+            Path uploadsDir = Paths.get("uploads");
+            if (!Files.exists(uploadsDir)) {
+                Files.createDirectories(uploadsDir);
+            }
+            
+            Path path = uploadsDir.resolve(filename);
+            Resource resource = new UrlResource(path.toUri());
 
-        if (!resource.exists() || !resource.isReadable()) {
-            return ResponseEntity.notFound().build();
+            if (!resource.exists() || !resource.isReadable()) {
+                return ResponseEntity.notFound().build();
+            }
+
+            return ResponseEntity.ok()
+                    .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + filename + "\"")
+                    .header(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN, "*")
+                    .header(HttpHeaders.ACCESS_CONTROL_ALLOW_METHODS, "GET, POST, PUT, DELETE, OPTIONS")
+                    .header(HttpHeaders.ACCESS_CONTROL_ALLOW_HEADERS, "*")
+                    .body(resource);
+        } catch (Exception e) {
+            return ResponseEntity.status(500).build();
         }
-
-        return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + filename + "\"")
-                .header(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN, "*")
-                .header(HttpHeaders.ACCESS_CONTROL_ALLOW_METHODS, "GET, POST, PUT, DELETE, OPTIONS")
-                .header(HttpHeaders.ACCESS_CONTROL_ALLOW_HEADERS, "*")
-                .body(resource);
     }
 
     @CrossOrigin(origins = "*")
