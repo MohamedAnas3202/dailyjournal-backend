@@ -17,7 +17,11 @@ public class CorsConfig {
         // Allow your Vercel frontend domains
         config.addAllowedOrigin("https://dailyjournal-frontend.vercel.app");
         config.addAllowedOrigin("https://dailyjournal-frontend-git-main-mohamedanas3202s-projects.vercel.app");
-        config.addAllowedOrigin("*"); // Allow all origins for now
+        config.addAllowedOrigin("http://localhost:3000"); // For local development
+        
+        // Use allowedOriginPatterns for wildcard support with credentials
+        config.addAllowedOriginPattern("https://*.vercel.app");
+        config.addAllowedOriginPattern("https://*.onrender.com");
         
         // Allow all headers
         config.addAllowedHeader("*");
