@@ -14,9 +14,8 @@ public class CorsConfig {
         CorsConfiguration config = new CorsConfiguration();
         config.setAllowCredentials(true);
         
-        // Allow your Vercel frontend domain and localhost for development
+        // Allow your Vercel frontend domain
         config.addAllowedOrigin("https://dailyjournal-frontend.vercel.app");
-        config.addAllowedOrigin("http://localhost:3000");
         
         // Allow all headers
         config.addAllowedHeader("*");

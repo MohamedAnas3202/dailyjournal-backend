@@ -17,11 +17,11 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.multipart.MultipartFile;
 import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.format.annotation.DateTimeFormat;
 
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -181,43 +181,43 @@ public class JournalController {
         return ResponseEntity.ok(response);
     }
 
+    @CrossOrigin(origins = {"https://dailyjournal-frontend.vercel.app"})
     @GetMapping("/media/{filename:.+}")
-    @CrossOrigin(origins = {"https://dailyjournal-frontend.vercel.app", "http://localhost:3000"})
     public ResponseEntity<Resource> getMedia(@PathVariable String filename) throws IOException {
+        Path path = Paths.get("uploads").resolve(filename);
+        Resource resource = new UrlResource(path.toUri());
+
+        if (!resource.exists() || !resource.isReadable()) {
+            return ResponseEntity.notFound().build();
+        }
+
+        // Detect content type
+        String contentType = "application/octet-stream";
         try {
-            Path path = Paths.get("uploads").resolve(filename).normalize();
-            Resource resource = new UrlResource(path.toUri());
-
-            if (!resource.exists() || !resource.isReadable()) {
-                return ResponseEntity.notFound().build();
-            }
-
-            // Detect content type
-            String contentType = Files.probeContentType(path);
+            contentType = Files.probeContentType(path);
             if (contentType == null) {
                 contentType = "application/octet-stream";
             }
-
-            return ResponseEntity.ok()
-                    .contentType(MediaType.parseMediaType(contentType))
-                    .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + filename + "\"")
-                    .header(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN, "*")
-                    .header(HttpHeaders.ACCESS_CONTROL_ALLOW_METHODS, "GET, OPTIONS")
-                    .header(HttpHeaders.ACCESS_CONTROL_ALLOW_HEADERS, "*")
-                    .body(resource);
-        } catch (Exception e) {
-            return ResponseEntity.internalServerError().build();
+        } catch (IOException e) {
+            // Use default content type
         }
-    }
 
-    @RequestMapping(value = "/media/{filename:.+}", method = RequestMethod.OPTIONS)
-    @CrossOrigin(origins = {"https://dailyjournal-frontend.vercel.app", "http://localhost:3000"})
-    public ResponseEntity<?> handleMediaOptions(@PathVariable String filename) {
         return ResponseEntity.ok()
-                .header(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN, "*")
+                .header(HttpHeaders.CONTENT_TYPE, contentType)
+                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + filename + "\"")
+                .header(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN, "https://dailyjournal-frontend.vercel.app")
                 .header(HttpHeaders.ACCESS_CONTROL_ALLOW_METHODS, "GET, OPTIONS")
                 .header(HttpHeaders.ACCESS_CONTROL_ALLOW_HEADERS, "*")
-                .header(HttpHeaders.ACCESS_CONTROL_MAX_AGE, "3600")
+                .body(resource);
+    }
+
+    @CrossOrigin(origins = {"https://dailyjournal-frontend.vercel.app"})
+    @RequestMapping(value = "/media/{filename:.+}", method = RequestMethod.OPTIONS)
+    public ResponseEntity<Void> handleMediaOptions(@PathVariable String filename) {
+        return ResponseEntity.ok()
+                .header(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN, "https://dailyjournal-frontend.vercel.app")
+                .header(HttpHeaders.ACCESS_CONTROL_ALLOW_METHODS, "GET, OPTIONS")
+                .header(HttpHeaders.ACCESS_CONTROL_ALLOW_HEADERS, "*")
                 .build();
     }
 

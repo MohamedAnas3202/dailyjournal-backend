@@ -8,14 +8,11 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 @Configuration
 public class WebConfig implements WebMvcConfigurer {
 
-    // Enable CORS for frontend access (React at Vercel and localhost)
+    // Enable CORS for frontend access (React at Vercel)
     @Override
     public void addCorsMappings(CorsRegistry registry) {
         registry.addMapping("/**")
-                .allowedOrigins(
-                    "https://dailyjournal-frontend.vercel.app",
-                    "http://localhost:3000"
-                )
+                .allowedOrigins("https://dailyjournal-frontend.vercel.app")
                 .allowedMethods("*")
                 .allowedHeaders("*")
                 .allowCredentials(true);
@@ -25,12 +22,6 @@ public class WebConfig implements WebMvcConfigurer {
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
         registry.addResourceHandler("/uploads/**")
-                .addResourceLocations("file:uploads/", "classpath:/static/uploads/")
-                .setCachePeriod(3600); // Cache for 1 hour
-        
-        // Also serve profile photos
-        registry.addResourceHandler("/profile-photos/**")
-                .addResourceLocations("file:profile-photos/", "classpath:/static/profile-photos/")
-                .setCachePeriod(3600);
+                .addResourceLocations("file:uploads/"); // Ensure this folder exists or is created
     }
 }
