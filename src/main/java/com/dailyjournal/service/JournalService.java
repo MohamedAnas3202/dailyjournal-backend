@@ -22,6 +22,7 @@ public class JournalService {
 
     private final JournalRepository journalRepo;
     private final UserRepository userRepo;
+    private final MediaFileService mediaFileService;
 
     // 🔐 Get the current authenticated user
     private User getCurrentUser() {
@@ -142,8 +143,7 @@ public class JournalService {
                 .orElseThrow(() -> new RuntimeException("Journal not found"));
         checkOwnershipOrAdmin(getCurrentUser(), entry.getUser());
 
-        String uploadDir = "uploads/";
-        List<String> uploadedFilenames = new ArrayList<>();
+        List<String> uploadedUrls = new ArrayList<>();
 
         long totalSize = 0L;
         long maxTotalSize = 10 * 1024 * 1024; // 10 MB
@@ -158,7 +158,6 @@ public class JournalService {
         List<String> allowedExtensions = List.of("jpg", "jpeg", "png", "gif", "pdf", "mp3", "wav", "ogg");
 
         try {
-            Files.createDirectories(Paths.get(uploadDir));
             for (MultipartFile file : files) {
                 if (file.isEmpty()) continue;
 
@@ -179,17 +178,16 @@ public class JournalService {
                     throw new RuntimeException("Total upload size exceeds 10MB.");
                 }
 
-                String filename = UUID.randomUUID() + "_" + originalFilename;
-                Path filepath = Paths.get(uploadDir + filename);
-                file.transferTo(filepath);
-                uploadedFilenames.add(filename);
+                // Upload to database as BLOB
+                String filename = mediaFileService.uploadFile(file);
+                uploadedUrls.add(filename);
             }
 
-            existingPaths.addAll(uploadedFilenames);
+            existingPaths.addAll(uploadedUrls);
             entry.setMediaPaths(existingPaths);
             journalRepo.save(entry);
 
-            return uploadedFilenames;
+            return uploadedUrls;
 
         } catch (IOException e) {
             throw new RuntimeException("File upload failed: " + e.getMessage());

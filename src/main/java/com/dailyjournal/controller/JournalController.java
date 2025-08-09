@@ -8,24 +8,18 @@ import com.dailyjournal.repository.JournalRepository;
 import com.dailyjournal.repository.UserRepository;
 import com.dailyjournal.security.JWTService;
 import com.dailyjournal.service.JournalService;
+import com.dailyjournal.service.MediaFileService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
-import org.springframework.web.bind.annotation.RequestMethod;
 import jakarta.servlet.http.HttpServletRequest;
-import org.springframework.format.annotation.DateTimeFormat;
 
-import org.springframework.core.io.Resource;
-import org.springframework.core.io.UrlResource;
 import org.springframework.http.HttpHeaders;
-
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -181,31 +175,52 @@ public class JournalController {
         return ResponseEntity.ok(response);
     }
 
+    @Autowired
+    private MediaFileService mediaFileService;
+
     @CrossOrigin(origins = "*")
     @GetMapping("/media/{filename:.+}")
-    public ResponseEntity<Resource> getMedia(@PathVariable String filename) {
+    public ResponseEntity<byte[]> getMedia(@PathVariable String filename,
+                                           HttpServletRequest request) {
         try {
-            // Ensure uploads directory exists
-            Path uploadsDir = Paths.get("uploads");
-            if (!Files.exists(uploadsDir)) {
-                Files.createDirectories(uploadsDir);
-            }
-            
-            Path path = uploadsDir.resolve(filename);
-            Resource resource = new UrlResource(path.toUri());
+            var view = mediaFileService.getFileView(filename);
 
-            if (!resource.exists() || !resource.isReadable()) {
-                return ResponseEntity.notFound().build();
+            if (view == null) {
+                return ResponseEntity.notFound()
+                        .header(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN, "*")
+                        .header(HttpHeaders.ACCESS_CONTROL_ALLOW_METHODS, "GET, POST, PUT, DELETE, OPTIONS")
+                        .header(HttpHeaders.ACCESS_CONTROL_ALLOW_HEADERS, "*")
+                        .build();
+            }
+
+            // Generate a weak ETag based on immutable properties
+            String eTag = "W/\"" + Integer.toHexString((filename + view.getFileSize() + view.getCreatedAt()).hashCode()) + "\"";
+            String ifNoneMatch = request.getHeader("If-None-Match");
+            if (eTag.equals(ifNoneMatch)) {
+                return ResponseEntity.status(304)
+                        .header(HttpHeaders.ETAG, eTag)
+                        .header(HttpHeaders.CACHE_CONTROL, "public, max-age=31536000, immutable")
+                        .header(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN, "*")
+                        .build();
             }
 
             return ResponseEntity.ok()
-                    .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + filename + "\"")
+                    .header(HttpHeaders.CONTENT_TYPE, view.getContentType())
+                    .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + view.getOriginalFilename() + "\"")
+                    .header(HttpHeaders.CONTENT_LENGTH, String.valueOf(view.getFileSize()))
+                    .header(HttpHeaders.ETAG, eTag)
+                    .header(HttpHeaders.CACHE_CONTROL, "public, max-age=31536000, immutable")
                     .header(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN, "*")
                     .header(HttpHeaders.ACCESS_CONTROL_ALLOW_METHODS, "GET, POST, PUT, DELETE, OPTIONS")
                     .header(HttpHeaders.ACCESS_CONTROL_ALLOW_HEADERS, "*")
-                    .body(resource);
+                    .body(view.getData());
         } catch (Exception e) {
-            return ResponseEntity.status(500).build();
+            System.err.println("Error serving media file " + filename + ": " + e.getMessage());
+            return ResponseEntity.status(500)
+                    .header(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN, "*")
+                    .header(HttpHeaders.ACCESS_CONTROL_ALLOW_METHODS, "GET, POST, PUT, DELETE, OPTIONS")
+                    .header(HttpHeaders.ACCESS_CONTROL_ALLOW_HEADERS, "*")
+                    .build();
         }
     }
 
